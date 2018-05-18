@@ -1,0 +1,2 @@
+tenacity==4.9.0
+requests==2.12.5
