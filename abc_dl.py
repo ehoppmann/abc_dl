@@ -2,6 +2,7 @@
 import re
 import tempfile
 import os
+import sys
 import shutil
 import random
 import string
@@ -10,6 +11,7 @@ from multiprocessing.dummy import Pool
 from distutils.spawn import find_executable
 import subprocess
 import argparse
+from datetime import datetime
 
 import requests
 
@@ -23,7 +25,7 @@ WORKING_DIR = os.path.join(
 )
 OUTPUT_TS_PATH = os.path.join(WORKING_DIR, 'concat.ts')
 CONCAT_LIST_PATH = os.path.join(WORKING_DIR, 'concat.txt')
-
+CDN_BASE_URL = 'http://abcradiomodhls.abc-cdn.net.au/i/triplej/audio'
 
 try:
     import tenacity
@@ -78,7 +80,7 @@ def download_file(url, output_dir: str=WORKING_DIR):
     return 'success'
 
 
-def main(url: str, output_dir: str):
+def main(url: str, output_dir: str, show_str: str, show_date: str, show_minutes: int):
     ffmpeg = find_executable('ffmpeg')
     if not ffmpeg:
         raise Exception('ffmpeg not found in PATH, please install ffmpeg and retry')
@@ -86,7 +88,19 @@ def main(url: str, output_dir: str):
     os.makedirs(WORKING_DIR)
     logger.info('Temporary working directory is: {}'.format(WORKING_DIR))
 
-    download_urls = get_download_urls(url)
+    if url:
+        download_urls = get_download_urls(url)
+    else:
+        try:
+            datetime.strptime(show_date, '%Y-%m-%d')
+        except ValueError:
+            logger.error('Date format incorrect, must be YYYY-MM-DD')
+            exit(1)
+        show_segments = show_minutes * 6 + 1  # 10 second segments
+        download_urls = [
+            os.path.join(CDN_BASE_URL, f'{show_str.lower()}-{show_date}.m4a', f'segment{i}_0_a.ts')
+            for i in range(1, show_segments + 1)
+        ]
 
     pool = Pool(DOWNLOAD_THREADS)
     download_status = pool.map(download_file, download_urls)
@@ -116,11 +130,31 @@ def main(url: str, output_dir: str):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog=__file__)
-    parser.add_argument('url', type=str,
-                        help='The page URL containing the program to download')
-    parser.add_argument('output_dir', type=str, default=os.path.join(os.path.expanduser('~'), 'Downloads'), nargs='?',
-                        help='Where the output file will be written to, by default ~/Downloads')
+    parser.add_argument(
+        'url', type=str, help='The page URL containing the program to download', nargs='?')
+    parser.add_argument(
+        'output_dir', type=str, default=os.path.join(os.path.expanduser('~'), 'Downloads'), nargs='?',
+        help='Where the output file will be written to, by default ~/Downloads')
+    parser.add_argument(
+        '-s', '--show_str', type=str, nargs='?',
+        help='Instead of providing `url`, you can instead pass the show stream string (e.g. fns for Friday Night Shuffle) '
+             'along with the show date and show number, and the CDN download URLs will be constructed from these')
+    parser.add_argument(
+        '-d', '--show_date', type=str, nargs='?',
+        help='Only needed if not passing `url`, A string representing the date of the show, e.g. 2018-05-18 for May 18th.')
+    parser.add_argument(
+        '-mins', '--show_minutes', type=int, default=180, nargs='?',
+        help='Only needed if not passing `url`, number of minutes in the show')
+
+    if len(sys.argv) == 1:
+        parser.print_help(sys.stderr)
+        sys.exit(1)
+
     args = vars(parser.parse_args())
+
+    if not args['url']:
+        assert all([i is not None for i in (args['show_str'], args['show_date'])]), 'If `url` is not provided, both ' \
+                                                                                    '`show_str` and `show_date` are required.'
 
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
