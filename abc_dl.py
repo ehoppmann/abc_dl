@@ -133,7 +133,7 @@ if __name__ == '__main__':
     parser.add_argument(
         'url', type=str, help='The page URL containing the program to download', nargs='?')
     parser.add_argument(
-        'output_dir', type=str, default=os.path.join(os.path.expanduser('~'), 'Downloads'), nargs='?',
+        '-o', '--output_dir', type=str, default=os.path.join(os.path.expanduser('~'), 'Downloads'), nargs='?',
         help='Where the output file will be written to, by default ~/Downloads')
     parser.add_argument(
         '-s', '--show_str', type=str, nargs='?',
