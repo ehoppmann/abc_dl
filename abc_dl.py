@@ -8,7 +8,6 @@ import random
 import string
 import logging
 from multiprocessing.dummy import Pool
-from distutils.spawn import find_executable
 import subprocess
 import argparse
 from datetime import datetime
@@ -81,7 +80,7 @@ def download_file(url, output_dir: str=WORKING_DIR):
 
 
 def main(url: str, output_dir: str, show_str: str, show_date: str, show_minutes: int):
-    ffmpeg = find_executable('ffmpeg')
+    ffmpeg = shutil.which('ffmpeg')
     if not ffmpeg:
         raise Exception('ffmpeg not found in PATH, please install ffmpeg and retry')
 
