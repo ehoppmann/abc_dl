@@ -14,6 +14,7 @@ from datetime import datetime
 
 import requests
 
+log = logging.getLogger(__name__)
 
 RETRY_LIMIT = 3
 DOWNLOAD_THREADS = 4
@@ -64,15 +65,15 @@ def get_download_urls(page_url: str):
 
 
 def download_file(url, output_dir: str=WORKING_DIR):
-    logger.info('Downloading {}'.format(url))
+    log.info('Downloading {}'.format(url))
     output_path = os.path.join(output_dir, url.split('/')[-1])
     try:
         r = _download(url)
     except:
-        logger.error('Exceeded retries trying to download {}'.format(url))
+        log.error('Exceeded retries trying to download {}'.format(url))
         return None
     if r.status_code == 404:
-        logger.error('{} returned 404; continuing without this file'.format(url))
+        log.error('{} returned 404; continuing without this file'.format(url))
         return None
     with open(output_path, 'wb') as f:
         f.write(r.content)
@@ -85,7 +86,7 @@ def main(url: str, output_dir: str, show_str: str, show_date: str, show_minutes:
         raise Exception('ffmpeg not found in PATH, please install ffmpeg and retry')
 
     os.makedirs(WORKING_DIR)
-    logger.info('Temporary working directory is: {}'.format(WORKING_DIR))
+    log.info('Temporary working directory is: {}'.format(WORKING_DIR))
 
     if url:
         download_urls = get_download_urls(url)
@@ -93,7 +94,7 @@ def main(url: str, output_dir: str, show_str: str, show_date: str, show_minutes:
         try:
             datetime.strptime(show_date, '%Y-%m-%d')
         except ValueError:
-            logger.error('Date format incorrect, must be YYYY-MM-DD')
+            log.error('Date format incorrect, must be YYYY-MM-DD')
             exit(1)
         show_segments = show_minutes * 6 + 1  # 10 second segments
         download_urls = [
@@ -111,20 +112,20 @@ def main(url: str, output_dir: str, show_str: str, show_date: str, show_minutes:
     with open(CONCAT_LIST_PATH, 'w') as f:
         f.write('file ' + '\nfile '.join(fns_downloaded))
 
-    logger.info('Concatenating files')  # join into a single file containing aac data
+    log.info('Concatenating files')  # join into a single file containing aac data
     subprocess.run(
         [ffmpeg, '-safe', '0', '-f', 'concat', '-i', CONCAT_LIST_PATH, '-acodec', 'copy', OUTPUT_TS_PATH],
         check=True, stdout=subprocess.PIPE
     )
 
-    logger.info('Writing output file')  # put in m4a container to enable proper timestamp-based seeking
+    log.info('Writing output file')  # put in m4a container to enable proper timestamp-based seeking
     output_filename = download_urls[0].split('/')[-2]
     subprocess.run(
         [ffmpeg, '-err_detect', 'ignore_err', '-i', OUTPUT_TS_PATH, '-c', 'copy', os.path.join(output_dir, output_filename)],
         check=True, stdout=subprocess.PIPE
     )
 
-    logger.info('Completed successfully')
+    log.info('Completed successfully')
 
 
 if __name__ == '__main__':
