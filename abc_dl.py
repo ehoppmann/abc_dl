@@ -57,11 +57,11 @@ def get_download_urls(page_url: str):
 
     r = requests.get(master_playlist_url)
     r.raise_for_status()
-    playlist_url = re.search('.*(http://.*m3u8).*', r.text).groups()[0]
+    playlist_url = re.search('.*(https?://.*m3u8).*', r.text).groups()[0]
 
     r = requests.get(playlist_url)
     r.raise_for_status()
-    return re.findall('.*(http://.*.ts).*', r.text)
+    return re.findall('.*(https?://.*.ts).*', r.text)
 
 
 def download_file(url, output_dir: str=WORKING_DIR):
